@@ -1,10 +1,10 @@
-import { useState } from 'react'
-import { useTodos } from '@/context/TodoContext'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Card, CardContent } from '@/components/ui/card'
+import { useState } from 'react';
+import { useTodos } from '@/context/TodoContext';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -13,8 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
-import type { Todo } from '@/types'
+} from '@/components/ui/dialog';
+import type { Todo } from '@/types';
 import {
   Plus,
   Pencil,
@@ -26,91 +26,100 @@ import {
   Filter,
   CheckCircle2,
   Circle,
-} from 'lucide-react'
-import { cn } from '@/lib/utils'
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { userApi } from '@/api/user';
 
 const priorityConfig = {
   low: { label: 'Низкий', color: 'text-muted-foreground', bg: 'bg-muted' },
-  medium: { label: 'Средний', color: 'text-yellow-500', bg: 'bg-yellow-500/10' },
-  high: { label: 'Высокий', color: 'text-destructive', bg: 'bg-destructive/10' },
-}
+  medium: {
+    label: 'Средний',
+    color: 'text-yellow-500',
+    bg: 'bg-yellow-500/10',
+  },
+  high: {
+    label: 'Высокий',
+    color: 'text-destructive',
+    bg: 'bg-destructive/10',
+  },
+};
 
-type FilterType = 'all' | 'active' | 'completed'
-type PriorityFilter = 'all' | 'low' | 'medium' | 'high'
+type FilterType = 'all' | 'active' | 'completed';
+type PriorityFilter = 'all' | 'low' | 'medium' | 'high';
 
 export function TodosPage() {
-  const { todos, addTodo, updateTodo, deleteTodo, toggleTodo } = useTodos()
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false)
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
-  const [editingTodo, setEditingTodo] = useState<Todo | null>(null)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [filter, setFilter] = useState<FilterType>('all')
-  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all')
+  const { todos, addTodo, updateTodo, deleteTodo, toggleTodo } = useTodos();
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<FilterType>('all');
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
 
   // Form state
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium')
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
 
   const filteredTodos = todos.filter((todo) => {
     const matchesSearch =
       todo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      todo.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      todo.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesFilter =
       filter === 'all' ||
       (filter === 'active' && !todo.completed) ||
-      (filter === 'completed' && todo.completed)
+      (filter === 'completed' && todo.completed);
     const matchesPriority =
-      priorityFilter === 'all' || todo.priority === priorityFilter
-    return matchesSearch && matchesFilter && matchesPriority
-  })
+      priorityFilter === 'all' || todo.priority === priorityFilter;
+    return matchesSearch && matchesFilter && matchesPriority;
+  });
 
-  const completedCount = todos.filter((t) => t.completed).length
-  const activeCount = todos.length - completedCount
+  const completedCount = todos.filter((t) => t.completed).length;
+  const activeCount = todos.length - completedCount;
 
   const handleAddTodo = () => {
-    if (!title.trim()) return
+    if (!title.trim()) return;
 
     addTodo({
       title: title.trim(),
       description: description.trim() || undefined,
       completed: false,
       priority,
-    })
+    });
 
-    setTitle('')
-    setDescription('')
-    setPriority('medium')
-    setIsAddDialogOpen(false)
-  }
+    setTitle('');
+    setDescription('');
+    setPriority('medium');
+    setIsAddDialogOpen(false);
+  };
 
   const handleEditTodo = () => {
-    if (!editingTodo || !title.trim()) return
+    if (!editingTodo || !title.trim()) return;
 
     updateTodo(editingTodo.id, {
       title: title.trim(),
       description: description.trim() || undefined,
       priority,
-    })
+    });
 
-    setEditingTodo(null)
-    setTitle('')
-    setDescription('')
-    setPriority('medium')
-    setIsEditDialogOpen(false)
-  }
+    setEditingTodo(null);
+    setTitle('');
+    setDescription('');
+    setPriority('medium');
+    setIsEditDialogOpen(false);
+  };
 
   const openEditDialog = (todo: Todo) => {
-    setEditingTodo(todo)
-    setTitle(todo.title)
-    setDescription(todo.description || '')
-    setPriority(todo.priority)
-    setIsEditDialogOpen(true)
-  }
+    setEditingTodo(todo);
+    setTitle(todo.title);
+    setDescription(todo.description || '');
+    setPriority(todo.priority);
+    setIsEditDialogOpen(true);
+  };
 
   const handleDeleteTodo = (id: string) => {
-    deleteTodo(id)
-  }
+    deleteTodo(id);
+  };
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('ru-RU', {
@@ -118,11 +127,19 @@ export function TodosPage() {
       month: 'short',
       hour: '2-digit',
       minute: '2-digit',
-    }).format(new Date(date))
-  }
+    }).format(new Date(date));
+  };
+
+  const handleGetAllUsers = async () => {
+    try {
+      const response = await userApi.getAll();
+      console.log(response);
+    } catch (error) {}
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <Button onClick={handleGetAllUsers}>Get All Users</Button>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -180,10 +197,12 @@ export function TodosPage() {
                       onClick={() => setPriority(p)}
                       className={cn(
                         'flex-1',
-                        priority === p && priorityConfig[p].bg
+                        priority === p && priorityConfig[p].bg,
                       )}
                     >
-                      <Flag className={cn('h-3 w-3 mr-1', priorityConfig[p].color)} />
+                      <Flag
+                        className={cn('h-3 w-3 mr-1', priorityConfig[p].color)}
+                      />
                       {priorityConfig[p].label}
                     </Button>
                   ))}
@@ -191,7 +210,10 @@ export function TodosPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <Button
+                variant="outline"
+                onClick={() => setIsAddDialogOpen(false)}
+              >
                 Отмена
               </Button>
               <Button onClick={handleAddTodo} disabled={!title.trim()}>
@@ -258,9 +280,7 @@ export function TodosPage() {
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <ListTodo className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-medium text-muted-foreground">
-              {todos.length === 0
-                ? 'Задач пока нет'
-                : 'Ничего не найдено'}
+              {todos.length === 0 ? 'Задач пока нет' : 'Ничего не найдено'}
             </h3>
             <p className="text-sm text-muted-foreground/70 mt-1">
               {todos.length === 0
@@ -276,7 +296,7 @@ export function TodosPage() {
               key={todo.id}
               className={cn(
                 'group transition-all duration-200 hover:shadow-lg hover:shadow-primary/5 hover:border-primary/30',
-                todo.completed && 'opacity-60'
+                todo.completed && 'opacity-60',
               )}
             >
               <CardContent className="flex items-start gap-4 p-4">
@@ -291,7 +311,8 @@ export function TodosPage() {
                       <h3
                         className={cn(
                           'font-medium transition-all',
-                          todo.completed && 'line-through text-muted-foreground'
+                          todo.completed &&
+                            'line-through text-muted-foreground',
                         )}
                       >
                         {todo.title}
@@ -325,11 +346,14 @@ export function TodosPage() {
                     <span
                       className={cn(
                         'flex items-center gap-1 px-2 py-0.5 rounded-full',
-                        priorityConfig[todo.priority].bg
+                        priorityConfig[todo.priority].bg,
                       )}
                     >
                       <Flag
-                        className={cn('h-3 w-3', priorityConfig[todo.priority].color)}
+                        className={cn(
+                          'h-3 w-3',
+                          priorityConfig[todo.priority].color,
+                        )}
                       />
                       <span className={priorityConfig[todo.priority].color}>
                         {priorityConfig[todo.priority].label}
@@ -352,9 +376,7 @@ export function TodosPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Редактировать задачу</DialogTitle>
-            <DialogDescription>
-              Измените информацию о задаче
-            </DialogDescription>
+            <DialogDescription>Измените информацию о задаче</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -387,10 +409,12 @@ export function TodosPage() {
                     onClick={() => setPriority(p)}
                     className={cn(
                       'flex-1',
-                      priority === p && priorityConfig[p].bg
+                      priority === p && priorityConfig[p].bg,
                     )}
                   >
-                    <Flag className={cn('h-3 w-3 mr-1', priorityConfig[p].color)} />
+                    <Flag
+                      className={cn('h-3 w-3 mr-1', priorityConfig[p].color)}
+                    />
                     {priorityConfig[p].label}
                   </Button>
                 ))}
@@ -398,7 +422,10 @@ export function TodosPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsEditDialogOpen(false)}
+            >
               Отмена
             </Button>
             <Button onClick={handleEditTodo} disabled={!title.trim()}>
@@ -408,6 +435,5 @@ export function TodosPage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
-

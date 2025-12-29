@@ -1,49 +1,57 @@
 import { Injectable } from '@nestjs/common';
+import { DatabaseService } from 'src/database/database.service';
+import { User } from 'src/entities/user/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from 'src/user/entities/user.entity';
 
 @Injectable()
 export class UserService {
-  create(createUserDto: CreateUserDto) {
-    return 'This action adds a new user';
+  constructor(private readonly db: DatabaseService) {}
+
+  private get table() {
+    return this.db.tables.USERS;
   }
 
-  findAll(): User[] {
-    return [
-      {
-        id: 1,
-        name: 'user1',
-        email: 'user1@example.com',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: 2,
-        name: 'user2',
-        email: 'user2@example.com',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-      {
-        id: 3,
-        name: 'user3',
-        email: 'user3@example.com',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      },
-    ];
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const [user] = await this.db.query<User>(
+      `INSERT INTO ${this.table} (name, email)
+       VALUES ($1, $2)
+       RETURNING *`,
+      [createUserDto.email, createUserDto.email],
+    );
+    return user;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findAll(): Promise<User[]> {
+    return this.db.query<User>(`SELECT * FROM ${this.table}`);
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async findOne(id: number): Promise<User | null> {
+    const [user] = await this.db.query<User>(
+      `SELECT * FROM ${this.table} WHERE id = $1`,
+      [id],
+    );
+    return user || null;
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} user`;
+  async update(id: number, updateUserDto: UpdateUserDto): Promise<User | null> {
+    const [user] = await this.db.query<User>(
+      `UPDATE ${this.table}
+       SET name = COALESCE($1, name),
+           email = COALESCE($2, email),
+           updated_at = NOW()
+       WHERE id = $3
+       RETURNING *`,
+      [updateUserDto.email, updateUserDto.email, id],
+    );
+    return user || null;
+  }
+
+  async remove(id: number): Promise<boolean> {
+    const result = await this.db.query(
+      `DELETE FROM ${this.table} WHERE id = $1 RETURNING id`,
+      [id],
+    );
+    return result.length > 0;
   }
 }
