@@ -142,14 +142,6 @@ export class AuthService {
   }
 
   /**
-   * Получение данных пользователя из токена (без верификации, только декодирование)
-   * Полезно когда нужно просто прочитать payload без проверки подписи
-   */
-  decodeJwt(token: string): JwtPayload | null {
-    return this.jwtService.decode<JwtPayload>(token);
-  }
-
-  /**
    * Генерация пары токенов
    */
   private async generateTokens(user: UserRow): Promise<AuthTokens> {

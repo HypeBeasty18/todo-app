@@ -5,6 +5,7 @@ export const AUTH_API = {
   SIGNUP: `${BASE_API_URL}/auth/signup`,
   SIGNIN: `${BASE_API_URL}/auth/signin`,
   REFRESH: `${BASE_API_URL}/auth/refresh`,
+  LOGOUT: `${BASE_API_URL}/auth/logout`,
 } as const;
 
 export const authApi = {
@@ -20,6 +21,10 @@ export const authApi = {
       email,
       password,
     });
+    return response;
+  },
+  logout: async () => {
+    const response = await axiosWithoutAuth.post(AUTH_API.LOGOUT);
     return response;
   },
 };

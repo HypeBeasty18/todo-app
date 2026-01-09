@@ -5,10 +5,15 @@ import {
   useEffect,
   type ReactNode,
 } from 'react';
-import type { User, AuthState } from '@/types';
+import type { User } from '@/types';
 import { authApi } from '@/api/auth';
+import { userApi } from '@/api/user';
+import Cookies from 'js-cookie';
 
-interface AuthContextType extends AuthState {
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   register: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
@@ -17,44 +22,54 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'todo_app_user';
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    isAuthenticated: false,
-    isLoading: true,
-  });
+  const [user, setUser] = useState<User | null>(null);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem(STORAGE_KEY);
-    if (savedUser) {
+    const isAuthenticated = Cookies.get('access_token');
+
+    const fetchUser = async () => {
       try {
-        const user = JSON.parse(savedUser);
-        setState({
-          user,
-          isAuthenticated: true,
-          isLoading: false,
-        });
+        setIsLoading(true);
+        const response = await userApi.getMe();
+        setUser(response.data);
+        setIsAuthenticated(true);
+        setIsLoading(false);
       } catch {
-        setState({ user: null, isAuthenticated: false, isLoading: false });
+        setUser(null);
+        setIsAuthenticated(false);
+        setIsLoading(false);
       }
-    } else {
-      setState({ user: null, isAuthenticated: false, isLoading: false });
+    };
+
+    if (isAuthenticated) {
+      fetchUser();
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const login = async (email: string, _password: string): Promise<boolean> => {
     try {
+      setIsLoading(true);
       const response = await authApi.signin(email, _password);
       if (response.status === 200) {
-        const user = response.data;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-        setState({ user, isAuthenticated: true, isLoading: false });
+        setUser(response.data);
+
+        setIsAuthenticated(true);
+        setIsLoading(false);
+
         return true;
       }
+      setIsLoading(false);
+      setIsAuthenticated(false);
+      setUser(null);
       return false;
     } catch (error) {
+      setIsLoading(false);
+      setIsAuthenticated(false);
+      setUser(null);
       return false;
     }
   };
@@ -66,33 +81,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await authApi.signup(email, _password);
       if (response.status === 201) {
-        const user = response.data;
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-        setState({ user, isAuthenticated: true, isLoading: false });
+        setUser(response.data);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+
         return true;
       }
+      setIsLoading(false);
+      setIsAuthenticated(false);
+      setUser(null);
       return false;
     } catch (error) {
+      setIsLoading(false);
+      setIsAuthenticated(false);
+      setUser(null);
       return false;
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setState({ user: null, isAuthenticated: false, isLoading: false });
-  };
+  const logout = async () => {
+    try {
+      await authApi.logout();
 
-  const updateUser = (userData: Partial<User>) => {
-    if (state.user) {
-      const updatedUser = { ...state.user, ...userData };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUser));
-      setState((prev) => ({ ...prev, user: updatedUser }));
+      setUser(null);
+      setIsAuthenticated(false);
+      setIsLoading(false);
+    } catch (error) {
+      setIsLoading(false);
+      setIsAuthenticated(false);
+      setUser(null);
+      return false;
     }
   };
+
+  const updateUser = (userData: Partial<User>) => {};
 
   return (
     <AuthContext.Provider
-      value={{ ...state, login, register, logout, updateUser }}
+      value={{
+        user,
+        isLoading,
+        isAuthenticated,
+        login,
+        register,
+        logout,
+        updateUser,
+      }}
     >
       {children}
     </AuthContext.Provider>

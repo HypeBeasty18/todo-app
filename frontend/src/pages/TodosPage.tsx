@@ -123,16 +123,8 @@ export function TodosPage() {
     }).format(new Date(date));
   };
 
-  const handleGetAllUsers = async () => {
-    try {
-      const response = await userApi.getMe();
-      console.log(response);
-    } catch (error) {}
-  };
-
   return (
     <div className="space-y-6 animate-fade-in">
-      <Button onClick={handleGetAllUsers}>Get All Users</Button>
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
