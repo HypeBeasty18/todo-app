@@ -41,7 +41,7 @@ export class UserController {
     return this.userService.update(user.sub, updateUserDto);
   }
 
-  @Delete(':id')
+  @Delete()
   remove(@CurrentUser() user: JwtPayload) {
     return this.userService.remove(user.sub);
   }

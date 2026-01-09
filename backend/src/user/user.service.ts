@@ -51,11 +51,10 @@ export class UserService {
     const [user] = await this.db.query<SafeUser>(
       `UPDATE ${this.table}
        SET name = COALESCE($1, name),
-           email = COALESCE($2, email),
            updated_at = NOW()
        WHERE id = $3
        RETURNING id, name, email, created_at as "createdAt", updated_at as "updatedAt"`,
-      [updateUserDto.name, updateUserDto.email, id],
+      [updateUserDto.name, id],
     );
 
     if (!user) {

@@ -44,35 +44,28 @@ const priorityConfig = {
   },
 };
 
-type FilterType = 'all' | 'active' | 'completed';
-type PriorityFilter = 'all' | 'low' | 'medium' | 'high';
-
 export function TodosPage() {
-  const { todos, addTodo, updateTodo, deleteTodo, toggleTodo } = useTodos();
+  const {
+    todos,
+    addTodo,
+    updateTodo,
+    deleteTodo,
+    toggleTodo,
+    setSearchQuery,
+    searchQuery,
+    filter,
+    setFilter,
+    priorityFilter,
+    setPriorityFilter,
+  } = useTodos();
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingTodo, setEditingTodo] = useState<Todo | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filter, setFilter] = useState<FilterType>('all');
-  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
 
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
-
-  const filteredTodos = todos.filter((todo) => {
-    const matchesSearch =
-      todo.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      todo.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesFilter =
-      filter === 'all' ||
-      (filter === 'active' && !todo.completed) ||
-      (filter === 'completed' && todo.completed);
-    const matchesPriority =
-      priorityFilter === 'all' || todo.priority === priorityFilter;
-    return matchesSearch && matchesFilter && matchesPriority;
-  });
 
   const completedCount = todos.filter((t) => t.completed).length;
   const activeCount = todos.length - completedCount;
@@ -275,7 +268,7 @@ export function TodosPage() {
       </div>
 
       {/* Todo List */}
-      {filteredTodos.length === 0 ? (
+      {todos.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <ListTodo className="h-12 w-12 text-muted-foreground/50 mb-4" />
@@ -291,7 +284,7 @@ export function TodosPage() {
         </Card>
       ) : (
         <div className="space-y-3 stagger-children">
-          {filteredTodos.map((todo) => (
+          {todos.map((todo) => (
             <Card
               key={todo.id}
               className={cn(

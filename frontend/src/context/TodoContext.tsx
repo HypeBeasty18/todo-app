@@ -1,101 +1,151 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
-import type { Todo } from '@/types'
-import { useAuth } from './AuthContext'
+import { todoApi } from '@/api/todos';
+import type { Todo } from '@/types';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
+import { useAuth } from './AuthContext';
 
 interface TodoContextType {
-  todos: Todo[]
-  addTodo: (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) => void
-  updateTodo: (id: string, updates: Partial<Todo>) => void
-  deleteTodo: (id: string) => void
-  toggleTodo: (id: string) => void
+  todos: Todo[];
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
+  addTodo: (todo: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateTodo: (id: string, updates: Partial<Todo>) => void;
+  deleteTodo: (id: string) => void;
+  toggleTodo: (id: string) => void;
+  filter: FilterType;
+  setFilter: (filter: FilterType) => void;
+  priorityFilter: PriorityFilter;
+  setPriorityFilter: (priorityFilter: PriorityFilter) => void;
 }
 
-const TodoContext = createContext<TodoContextType | undefined>(undefined)
+const TodoContext = createContext<TodoContextType | undefined>(undefined);
 
-const getTodosKey = (userId: string) => `todo_app_todos_${userId}`
+const DEBOUNCE_DELAY = 700;
+
+type FilterType = 'all' | 'active' | 'completed';
+type PriorityFilter = 'all' | 'low' | 'medium' | 'high';
 
 export function TodoProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
-  const [todos, setTodos] = useState<Todo[]>([])
+  const { user } = useAuth();
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const [filter, setFilter] = useState<FilterType>('all');
+
+  const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>('all');
+
+  // Debounce search query
   useEffect(() => {
-    if (user) {
-      const savedTodos = localStorage.getItem(getTodosKey(user.id))
-      if (savedTodos) {
-        try {
-          const parsed = JSON.parse(savedTodos)
-          setTodos(
-            parsed.map((todo: Todo) => ({
-              ...todo,
-              createdAt: new Date(todo.createdAt),
-              updatedAt: new Date(todo.updatedAt),
-            }))
-          )
-        } catch {
-          setTodos([])
-        }
-      } else {
-        setTodos([])
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, DEBOUNCE_DELAY);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
       }
-    } else {
-      setTodos([])
-    }
-  }, [user])
+    };
+  }, [searchQuery]);
 
+  // Fetch todos when user changes or debounced search changes
   useEffect(() => {
-    if (user && todos.length >= 0) {
-      localStorage.setItem(getTodosKey(user.id), JSON.stringify(todos))
-    }
-  }, [todos, user])
+    const fetchTodos = async () => {
+      try {
+        const response = await todoApi.getAll({
+          search: debouncedSearch || undefined,
+          completed:
+            filter === 'all'
+              ? undefined
+              : filter === 'completed'
+              ? true
+              : false,
+          priority: priorityFilter === 'all' ? undefined : priorityFilter,
+        });
+        setTodos(response.data.results);
+      } catch (error) {
+        console.error(error);
+        setTodos([]);
+      }
+    };
 
-  const addTodo = (todoData: Omit<Todo, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newTodo: Todo = {
-      ...todoData,
-      id: crypto.randomUUID(),
-      createdAt: new Date(),
-      updatedAt: new Date(),
+    if (!user) {
+      setTodos([]);
+      return;
     }
-    setTodos((prev) => [newTodo, ...prev])
-  }
+
+    fetchTodos();
+  }, [user, debouncedSearch, filter, priorityFilter]);
+
+  const addTodo = async (
+    todoData: Pick<Todo, 'title' | 'description' | 'priority'>,
+  ) => {
+    try {
+      const response = await todoApi.create(todoData);
+      setTodos((prev) => [response.data, ...prev]);
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   const updateTodo = (id: string, updates: Partial<Todo>) => {
     setTodos((prev) =>
       prev.map((todo) =>
-        todo.id === id
-          ? { ...todo, ...updates, updatedAt: new Date() }
-          : todo
-      )
-    )
-  }
+        todo.id === id ? { ...todo, ...updates, updatedAt: new Date() } : todo,
+      ),
+    );
+  };
 
   const deleteTodo = (id: string) => {
-    setTodos((prev) => prev.filter((todo) => todo.id !== id))
-  }
+    setTodos((prev) => prev.filter((todo) => todo.id !== id));
+  };
 
   const toggleTodo = (id: string) => {
     setTodos((prev) =>
       prev.map((todo) =>
         todo.id === id
           ? { ...todo, completed: !todo.completed, updatedAt: new Date() }
-          : todo
-      )
-    )
-  }
+          : todo,
+      ),
+    );
+  };
 
   return (
     <TodoContext.Provider
-      value={{ todos, addTodo, updateTodo, deleteTodo, toggleTodo }}
+      value={{
+        todos,
+        searchQuery,
+        setSearchQuery,
+        addTodo,
+        updateTodo,
+        deleteTodo,
+        toggleTodo,
+        filter,
+        setFilter,
+        priorityFilter,
+        setPriorityFilter,
+      }}
     >
       {children}
     </TodoContext.Provider>
-  )
+  );
 }
 
 export function useTodos() {
-  const context = useContext(TodoContext)
+  const context = useContext(TodoContext);
   if (context === undefined) {
-    throw new Error('useTodos must be used within a TodoProvider')
+    throw new Error('useTodos must be used within a TodoProvider');
   }
-  return context
+  return context;
 }
-

@@ -1,5 +1,6 @@
 export const Tables = {
   USERS: 'users',
+  TODOS: 'todos',
   // добавляй новые таблицы здесь
 } as const;
 
