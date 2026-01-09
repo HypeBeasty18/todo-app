@@ -26,11 +26,11 @@ export class AuthController {
     @Body() authDto: AuthDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { user, tokens } = await this.authService.signup(authDto);
+    const tokens = await this.authService.signup(authDto);
 
     this.setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
 
-    return { user };
+    return { success: true };
   }
 
   @Post('signin')
@@ -39,11 +39,11 @@ export class AuthController {
     @Body() authDto: AuthDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const { user, tokens } = await this.authService.signin(authDto);
+    const tokens = await this.authService.signin(authDto);
 
     this.setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
 
-    return { user };
+    return { success: true };
   }
 
   @Post('refresh')
@@ -58,18 +58,18 @@ export class AuthController {
       throw new UnauthorizedException('Refresh token отсутствует');
     }
 
-    const { user, tokens } = await this.authService.refreshTokens(refreshToken);
+    const tokens = await this.authService.refreshTokens(refreshToken);
 
     this.setTokenCookies(res, tokens.accessToken, tokens.refreshToken);
 
-    return { user };
+    return { success: true };
   }
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
   logout(@Res({ passthrough: true }) res: Response) {
     this.clearTokenCookies(res);
-    return { message: 'Успешный выход' };
+    return { success: true };
   }
 
   /**
@@ -82,7 +82,6 @@ export class AuthController {
   ) {
     const isProduction = process.env.NODE_ENV === 'production';
 
-    // Access token - httpOnly: false чтобы фронт мог читать для проверки
     res.cookie(ACCESS_TOKEN_COOKIE, accessToken, {
       httpOnly: false,
       secure: isProduction,
@@ -91,7 +90,6 @@ export class AuthController {
       path: '/',
     });
 
-    // Refresh token - httpOnly: true для безопасности
     res.cookie(REFRESH_TOKEN_COOKIE, refreshToken, {
       httpOnly: true,
       secure: isProduction,

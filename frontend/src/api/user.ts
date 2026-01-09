@@ -2,12 +2,12 @@ import { axiosInstance } from '@/api/axios';
 import { BASE_API_URL } from '@/api/config';
 
 export const USER_API = {
-  GET_ALL: `${BASE_API_URL}/user`,
+  GET_ME: `${BASE_API_URL}/user/me`,
 } as const;
 
 export const userApi = {
-  getAll: async () => {
-    const response = await axiosInstance.get(USER_API.GET_ALL);
+  getMe: async () => {
+    const response = await axiosInstance.get(USER_API.GET_ME);
     return response;
   },
 };

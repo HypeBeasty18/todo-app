@@ -20,10 +20,12 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
-// Внутренний тип — возвращается сервисом для контроллера
-export interface AuthResult {
-  user: UserPayload;
-  tokens: AuthTokens;
+export interface JwtPayload {
+  sub: string;
+  email: string;
+  name: string;
+  iat: number;
+  exp: number;
 }
 
 interface UserRow {
@@ -34,16 +36,10 @@ interface UserRow {
   createdAt: Date;
 }
 
-interface JwtPayload {
-  sub: string;
-  email: string;
-  name: string;
-}
-
 @Injectable()
 export class AuthService {
   private readonly SALT_ROUNDS = 12;
-  private readonly ACCESS_TOKEN_EXPIRY = '1m';
+  private readonly ACCESS_TOKEN_EXPIRY = '15m';
   private readonly REFRESH_TOKEN_EXPIRY = '7d';
 
   constructor(
@@ -54,8 +50,9 @@ export class AuthService {
 
   /**
    * Регистрация нового пользователя
+   * Возвращает только токены, user получаем отдельным запросом
    */
-  async signup(authDto: AuthDto): Promise<AuthResult> {
+  async signup(authDto: AuthDto): Promise<AuthTokens> {
     const { USERS } = this.db.tables;
 
     const existingUser = await this.findByEmail(authDto.email);
@@ -76,22 +73,14 @@ export class AuthService {
       [name, authDto.email, hashedPassword],
     );
 
-    const tokens = await this.generateTokens(user);
-
-    return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-      tokens,
-    };
+    return this.generateTokens(user);
   }
 
   /**
    * Вход пользователя
+   * Возвращает только токены
    */
-  async signin(authDto: AuthDto): Promise<AuthResult> {
+  async signin(authDto: AuthDto): Promise<AuthTokens> {
     const { USERS } = this.db.tables;
 
     const [user] = await this.db.query<UserRow>(
@@ -114,22 +103,13 @@ export class AuthService {
       throw new UnauthorizedException('Неверный email или пароль');
     }
 
-    const tokens = await this.generateTokens(user);
-
-    return {
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-      tokens,
-    };
+    return this.generateTokens(user);
   }
 
   /**
    * Обновление access токена по refresh токену
    */
-  async refreshTokens(refreshToken: string): Promise<AuthResult> {
+  async refreshTokens(refreshToken: string): Promise<AuthTokens> {
     try {
       const payload = this.jwtService.verify<JwtPayload>(refreshToken, {
         secret: this.getRefreshSecret(),
@@ -141,26 +121,39 @@ export class AuthService {
         throw new UnauthorizedException('Пользователь не найден');
       }
 
-      const tokens = await this.generateTokens(user);
-
-      return {
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-        },
-        tokens,
-      };
+      return this.generateTokens(user);
     } catch {
       throw new UnauthorizedException('Невалидный refresh токен');
     }
   }
 
   /**
+   * Парсинг JWT токена и получение payload
+   * Используется для получения данных пользователя из access_token
+   */
+  parseJwt(token: string): JwtPayload {
+    try {
+      return this.jwtService.verify<JwtPayload>(token, {
+        secret: this.getAccessSecret(),
+      });
+    } catch {
+      throw new UnauthorizedException('Невалидный токен');
+    }
+  }
+
+  /**
+   * Получение данных пользователя из токена (без верификации, только декодирование)
+   * Полезно когда нужно просто прочитать payload без проверки подписи
+   */
+  decodeJwt(token: string): JwtPayload | null {
+    return this.jwtService.decode<JwtPayload>(token);
+  }
+
+  /**
    * Генерация пары токенов
    */
   private async generateTokens(user: UserRow): Promise<AuthTokens> {
-    const payload: JwtPayload = {
+    const payload: Omit<JwtPayload, 'iat' | 'exp'> = {
       sub: user.id,
       email: user.email,
       name: user.name,

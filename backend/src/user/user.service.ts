@@ -1,8 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { DatabaseService } from 'src/database/database.service';
 import { User } from 'src/entities/user/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+
+// Тип без пароля для возврата клиенту
+type SafeUser = Omit<User, 'password'>;
 
 @Injectable()
 export class UserService {
@@ -12,46 +15,66 @@ export class UserService {
     return this.db.tables.USERS;
   }
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const [user] = await this.db.query<User>(
+  async create(createUserDto: CreateUserDto): Promise<SafeUser> {
+    const [user] = await this.db.query<SafeUser>(
       `INSERT INTO ${this.table} (name, email)
        VALUES ($1, $2)
-       RETURNING *`,
-      [createUserDto.email, createUserDto.email],
+       RETURNING id, name, email, created_at as "createdAt", updated_at as "updatedAt"`,
+      [createUserDto.name, createUserDto.email],
     );
     return user;
   }
 
-  async findAll(): Promise<User[]> {
-    return this.db.query<User>(`SELECT * FROM ${this.table}`);
+  async findAll(): Promise<SafeUser[]> {
+    return this.db.query<SafeUser>(
+      `SELECT id, name, email, created_at as "createdAt", updated_at as "updatedAt"
+       FROM ${this.table}`,
+    );
   }
 
-  async findOne(id: number): Promise<User | null> {
-    const [user] = await this.db.query<User>(
-      `SELECT * FROM ${this.table} WHERE id = $1`,
+  async findOne(id: string): Promise<SafeUser> {
+    const [user] = await this.db.query<SafeUser>(
+      `SELECT id, name, email, created_at as "createdAt", updated_at as "updatedAt"
+       FROM ${this.table}
+       WHERE id = $1`,
       [id],
     );
-    return user || null;
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    return user;
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<User | null> {
-    const [user] = await this.db.query<User>(
+  async update(id: string, updateUserDto: UpdateUserDto): Promise<SafeUser> {
+    const [user] = await this.db.query<SafeUser>(
       `UPDATE ${this.table}
        SET name = COALESCE($1, name),
            email = COALESCE($2, email),
            updated_at = NOW()
        WHERE id = $3
-       RETURNING *`,
-      [updateUserDto.email, updateUserDto.email, id],
+       RETURNING id, name, email, created_at as "createdAt", updated_at as "updatedAt"`,
+      [updateUserDto.name, updateUserDto.email, id],
     );
-    return user || null;
+
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    return user;
   }
 
-  async remove(id: number): Promise<boolean> {
+  async remove(id: string): Promise<{ deleted: boolean }> {
     const result = await this.db.query(
       `DELETE FROM ${this.table} WHERE id = $1 RETURNING id`,
       [id],
     );
-    return result.length > 0;
+
+    if (result.length === 0) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    return { deleted: true };
   }
 }

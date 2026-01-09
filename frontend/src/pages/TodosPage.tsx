@@ -132,7 +132,7 @@ export function TodosPage() {
 
   const handleGetAllUsers = async () => {
     try {
-      const response = await userApi.getAll();
+      const response = await userApi.getMe();
       console.log(response);
     } catch (error) {}
   };
